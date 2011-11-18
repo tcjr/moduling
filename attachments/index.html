@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    
+    <title></title>
+    <link href="/jsmodules/dojo-1.7.0/lib/resources/dojo.css" rel="stylesheet" type="text/css" />
+    <link href="/jsmodules/dijit-1.7.0/lib/themes/claro/claro.css" rel="stylesheet" type="text/css" />
+    <!-- dojo loader -->
+    <script language="javascript" type="text/javascript" src="js/dojo-config.js"></script>
+    <script language="javascript" type="text/javascript" src="/jsmodules/dojo-1.7.0/lib/dojo.js.uncompressed.js"></script>
+  </head>
+  <body class="claro">
+    <script language="javascript" type="text/javascript">
+    require([
+      'dojo/_base/declare',
+      'put-selector/put',
+      'mycouch/CouchDbStore',
+      'dgrid/Grid',
+      'dgrid/Selection',
+      'dojo/domReady!'
+    ], function(declare, put, CouchDbStore, Grid, Selection){
+      
+      var store = new CouchDbStore({target:"/lectures/"});
+      
+      store.get('243f51866b03d71712d85fa1b04c8f0b').then(function(resp){
+        console.debug("got object: %o", resp);
+      })
+
+      function gotList(list){
+        console.debug("got successful response.  list.length=%o, list.total=%o", list.length, list.total);
+        //console.debug(list);
+      }
+      
+      function gotError(resp){
+        console.error(resp);
+      }
+      
+      var grid = null;
+      function displayGrid(list){
+        console.debug("Ok... displaying grid with %d items", list.length);
+        if(!grid){
+          var gridNode = put(document.body, 'div');
+          grid = new (declare([Grid, Selection]))({
+            columns: [{
+                field: 'title',
+                label: 'Title'
+              },{
+                field: 'duration',
+                label: 'Length'
+              },{
+                field: 'link',
+                label: 'Link',
+                sortable: false
+              },{
+                field: 'published',
+                label: 'Date'
+              }
+            ]
+          }, gridNode);
+        }
+        
+        grid.renderArray(list);
+      }
+
+
+      var getView = store.query({
+        type: 'view',
+        design: 'moduling',
+        view: 'byTitle',
+        processAs: 'viewWithDocIncluded',
+      });
+      //getView.then(gotList, gotError);
+      getView.then(displayGrid, gotError);
+      
+    });
+    </script>
+    
+  </body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    
+    <title></title>
+    <link href="/jsmodules/dojo-1.7.0/lib/resources/dojo.css" rel="stylesheet" type="text/css" />
+    <link href="/jsmodules/dijit-1.7.0/lib/themes/claro/claro.css" rel="stylesheet" type="text/css" />
+    <!-- dojo loader -->
+    <script>
+    // TODO: build this config for dev / release
+    var dojoConfig = {
+      async: 1,
+      //baseUrl: "",
+      packages:[
+        { name: 'put-selector', location: '/jsmodules/put-selector/lib' },
+        { name: 'dojo', location: '/jsmodules/dojo-1.7.0/lib' },
+        { name: 'handlebars', location: '/jsmodules/dojo-handlebars/lib' },
+        { name: 'dijit', location: '/jsmodules/dijit-1.7.0/lib' },
+        { name: 'xstyle', location: '/jsmodules/xstyle/lib' },
+        { name: 'dgrid', location: '/jsmodules/dgrid/lib' },
+        { name: 'couch', location: '/jsmodules/dojocouch/lib' },
+        // This one is in the "current" design doc, so we will get it from the attachments dir
+        { name: 'mycouch', location: 'js/mycouch' },
+        { name: 'modulingapp', location: 'js/modulingapp' }
+      ]
+    };
+    </script>
+    <script language="javascript" type="text/javascript" src="/jsmodules/dojo-1.7.0/lib/dojo.js.uncompressed.js"></script>
+  </head>
+  <body class="claro">
+    <script language="javascript" type="text/javascript">
+    require([
+      'put-selector/put',
+      'dojo/dom',
+      'dojo/_base/array',
+      'handlebars',
+      'dijit/form/Button',
+      'dgrid/Grid',
+      'couch/util/Couch',
+      'dojo/domReady!'
+    ], function(put, dom, array, Handlebars, DButton, Grid, Couch){
+      
+      var n = dom.byId('msg');
+      n.innerHTML = "Hey!";
+      
+      put(document.body, 'div', 'Hey!');
+      
+      var src = '<h3>Hey {{name}}!</h3>';
+      var greeter = Handlebars.compile(src);
+
+      array.forEach(['Tom', 'Jerry'], function(n){
+        put(document.body, 'div', {
+            innerHTML: greeter({name:n})
+          }
+        );
+      });
+
+      var btn = new DButton({
+        label: 'Click Me!'
+      }).placeAt('msg');
+
+
+      var couch = Couch.getCouch('http://localhost:5984');
+      console.debug("local couch: %o", couch);
+      // 
+      var db = couch.db('lectures');
+
+      // var v = 'dojo_app/firstLetter';
+      // console.debug("Using view spec: %o", v);
+      // var letterGroups = db.view(v, {reduce: true, group: true});
+      // 
+      // dojo.when(letterGroups, function(res){
+      //   console.debug("RESULTS: %o", res);
+      // });
+
+      var grid = new Grid({
+        columns:{
+          title:{
+            label: 'Title'
+          },
+          duration:{
+            label: 'Length'
+          }
+        }
+      }, 'the-list');
+
+      dojo.when(db.allDocs({include_docs:true}), function(doc){
+        // dojo.forEach(doc.rows, function(lecture){
+        //   put(docsNode, 'div $', lecture.id);
+        // });
+        var docs = array.map(doc.rows, function(row){ return row.doc; });
+        grid.renderArray(docs);
+      });
+
+      
+    });
+    </script>
+
+    <div id="msg">
+      Well...
+    </div>
+
+    <div id="the-list"></div>
+    
+  </body>
+</html>
