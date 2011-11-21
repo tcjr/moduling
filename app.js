@@ -31,7 +31,44 @@ ddoc.views = {
         emit((min*60)+sec, null);
       }
     }
+  },
+
+  'byInventoryNumber': {
+    map: function(doc) {
+      if (doc['meta-view-id'] == 'ygr5-vcbg'){ // type check
+        if ('Inventory Number' in doc){
+          emit( parseInt(doc['Inventory Number']), null);
+        }
+      }
+    }
+  },
+
+  'byColor': {
+    map: function(doc) {
+      if (doc['meta-view-id'] == 'ygr5-vcbg'){ // type check
+        if ('Color' in doc){
+          emit( {'color':doc['Color']}, 1);
+        }else{
+          emit( {'color':'Unspecified'}, 1);
+        }
+      }
+    }, 
+    reduce: '_sum'
+  },
+
+  'byColour': {
+    map: function(doc) {
+      if (doc['meta-view-id'] == 'ygr5-vcbg'){ // type check
+        if ('Color' in doc){
+          emit( [doc['Color']], 1);
+        }else{
+          emit( ['Unspecified'], 1);
+        }
+      }
+    }, 
+    reduce: '_sum'
   }
+
 
 };
 

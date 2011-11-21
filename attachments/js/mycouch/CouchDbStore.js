@@ -23,7 +23,10 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
     if ('processAs' in query){
       switch(query.processAs){
         case 'viewWithDocIncluded':
-          opts.include_docs = true
+          opts.include_docs = true;
+          break
+        case 'viewKeys':
+          opts.reduce = false;
           break
       }
     }
@@ -142,13 +145,97 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
   *    {"id":"xxxxxx", "key": { ... }, "value": ... },
   *    {"id":"yyyyyy", "key": { ... }, "value": ... }
   *  ]}
-  *  This processor returns an array of the key objects.  If the key does not contain an 'id' property, then the id from 
-  *  the result row will be mixed-in.
-  *  NOTE: View ids are not guaranteed by couchdb to be unique!
+  *  This processor returns an array of the key objects.  The view value and id are mixed into the 
+  *  items as _view_value and _view_id.  
+  *  NOTE: If the key is a string or array, you should use standardView. (for now)
+  *  NOTE: This processor forces reduce = false
   */
   util.resultsProcessors.viewKeys = function(couch_view_results){
-    throw new Error("processor not yet implemented");
+    console.debug("processing couch results with: viewKeys");
+    var store_results = Deferred.when(couch_view_results, function(wrapped_results){
+
+      var results_array = array.map(wrapped_results.rows, function(row){
+        var doc = row.key;
+        doc._view_id = row.id;
+        doc._view_value = row.value;
+        return doc;
+      });
+      return results_array;
+    });
+    
+    return store_results;
   };
+
+
+  /* A common pattern is to use an array for keys in a couch view, like this:
+  *  {"total_rows":2, "offset":0, "rows":[ 
+  *    {"id":"xxxxxx", "key": [2011, "March", ...], "value": ... },
+  *    {"id":"yyyyyy", "key": [2010, "May", ...], "value": ... }
+  *  ]}
+  *  This processor returns an object representing the key array as an object.  It uses the options
+  *  field keyFields to provide fields for the array values.  
+  *    E.g.:  If keyFields = ['year', 'month'], then the result will be:
+  *  [ 
+  *    {year: 2011, month: "March", _view_value:..., _view_id: "xxxxxx"}, 
+  *    {year: 2010, month: "May", _view_value:..., _view_id: "yyyyyy"}
+  *  ]
+  *  This processor is particularly useful for reduced view responses.
+  */
+  util.resultsProcessors.viewKeyArray = function(couch_view_results, query, options){
+    console.debug("processing couch results with: viewKeyArray");
+    var store_results = Deferred.when(couch_view_results, function(wrapped_results){
+
+      var colNames;
+      var results_array = array.map(wrapped_results.rows, function(row){
+        // only build this list once
+        if(!colNames){ 
+          //  placeholders
+          colNames = array.map(row.key, function(blah, idx){ return '_col_'+idx; });
+          if(options['keyFields']){
+            
+            for(var i=0; i<options.keyFields.length; i++){
+              colNames[i] = options.keyFields[i];
+            }
+            
+          }
+        }
+        
+        var doc = {};
+        array.forEach(colNames, function(name, idx){
+          doc[name] = row.key[idx];
+        });
+        
+        if ('id' in row){ 
+          doc._view_id = row.id; 
+        }
+        doc._view_value = row.value;
+        return doc;
+      });
+      return results_array;
+    });
+    
+    return store_results;
+  };
+  
+  
+
+  
+  /* A common pattern is to use an array for keys in a couch view, like this:
+  *  {"total_rows":2, "offset":0, "rows":[ 
+  *    {"id":"xxxxxx", "key": [2011, "March", ...], "value": ... },
+  *    {"id":"yyyyyy", "key": [2010, "May", ...], "value": ... }
+  *  ]}
+  *  TODO: This one needs some rethinking...
+  *  This processor returns an object representing the key array with each position in the array
+  *  having a '_key_N' key.  E.g.:
+  *  [ 
+  *    {_key_0: 2011, _key_1: "March", _view_value:..., _view_id: "xxxxxx"}, 
+  *    {_key_0: 2010, _key_1: "May", _view_value:..., _view_id: "yyyyyy"}
+  *  ]
+  */
+  // util.resultsProcessors.TODO = function(couch_view_results){
+  //   throw new Error("processor not yet implemented");
+  // };
   
   
   var CdbUtil = util;  
@@ -195,7 +282,7 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
       });
 
       //var processedResults = CdbUtil.resultsProcessors.standardView(results); // hardcoded
-      var processedResults = (couchCall.processor)(results); 
+      var processedResults = (couchCall.processor)(results, query, options); 
 
       return processedResults;
     }
