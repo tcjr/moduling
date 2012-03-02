@@ -32,7 +32,29 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
     }
   }
 
+  util._updatePagination = function(opts){
+    if ('start' in opts){
+      opts.skip = opts.start;
+      delete opts.start
+      if (opts.skip >= 1000){
+        console.log("performance warning: paginating over large data is not advisable.  See: http://guide.couchdb.org/draft/recipes.html#pagination")
+      }
+    }
+    if ('count' in opts){
+      opts.limit = opts.count;
+      delete opts.count;
+    }
+  }
+
+  util._passthrough = function(data){
+    return data;
+  }
+
   util.buildCouchCall = function(inputQuery, inputOptions){
+    // console.debug("building couch call. ")
+    // console.debug(".................... inputQuery=%o", inputQuery)
+    // console.debug(".................... inputOptions=%o", inputOptions)
+    
     var DEFAULT_QUERY = {};
     var query = lang.mixin(dojo.clone(DEFAULT_QUERY), inputQuery);
     var options = lang.mixin({}, inputOptions);
@@ -40,7 +62,11 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
     var processor = null;
     util._checkArgs(query, 'query', ['type']);
 
-    
+    // TEMP
+    if ('query' in options){
+      delete options.query
+    }
+
     switch(query.type){
       case 'view':
         util._checkArgs(query, 'type view', ['design', 'view']);
@@ -55,7 +81,7 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
         // req: view
         // req: list
         queryUrl = '_design/' + query.design + '/_list/' + query.list + '/' + query.view;
-        processor = StockQueryResults;  // default, may be overwritten with processAs
+        processor = util._passThrough;  // default, may be overwritten with processAs
         break;
       default:
         throw new Error("query type "+query.type+"not supported");
@@ -66,6 +92,8 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
     }
 
     util._updateOptions(query, options);
+
+    util._updatePagination(options);
 
     var couchCall = {
       url: queryUrl + (Object.keys(options).length ? '?'+ioQuery.objectToQuery(options) : ''),
@@ -109,8 +137,9 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
    * TODO: Perhaps the key & value mixing-in should be a different processor...
    */
   util.resultsProcessors.viewWithDocIncluded = function(couch_view_results){
-    console.debug("processing couch results with: viewWithDocIncluded");
+    console.debug("planning to process couch results with: viewWithDocIncluded");
     var store_results = Deferred.when(couch_view_results, function(wrapped_results){
+      console.debug("processing couch results with: viewWithDocIncluded");
       
       var results_array = array.map(wrapped_results.rows, function(row){
         var doc = row.doc;
@@ -122,9 +151,10 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
       });
       results_array.total = wrapped_results.total_rows || results_array.length;
       results_array.offset = wrapped_results.offset;
+      console.debug("viewWithDocIncluded is returning an array with %d items", results_array.length);
       return results_array;
     });
-    
+
     return store_results;
   };
 
@@ -218,8 +248,6 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
   };
   
   
-
-  
   /* A common pattern is to use an array for keys in a couch view, like this:
   *  {"total_rows":2, "offset":0, "rows":[ 
   *    {"id":"xxxxxx", "key": [2011, "March", ...], "value": ... },
@@ -276,15 +304,17 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
       
       console.debug("Query to send to couch: %s", couchCall.url);
 
-      var results = xhr('GET', {
+      var results = lang.delegate(xhr('GET', {
         handleAs: 'json',
         url: this.target + couchCall.url
-      });
+      }));
 
-      //var processedResults = CdbUtil.resultsProcessors.standardView(results); // hardcoded
-      var processedResults = (couchCall.processor)(results, query, options); 
-
-      return processedResults;
+      var processedResults = lang.delegate((couchCall.processor)(results, query, options)); 
+      
+      // This hack is required because the dojo implementors use 'total' as both a flag and an actual value at different times.
+      processedResults.total = Deferred.when(processedResults, function(pr){ return pr.total});
+      
+      return StockQueryResults(processedResults);
     }
     
   });
@@ -292,3 +322,5 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
   return CouchDbStore;
   
 });
+
+

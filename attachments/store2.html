@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    
+    <title></title>
+    <link href="/jsmodules/dojo-1.7.0/lib/resources/dojo.css" rel="stylesheet" type="text/css" />
+    <link href="/jsmodules/dijit-1.7.0/lib/themes/claro/claro.css" rel="stylesheet" type="text/css" />
+    <!-- dojo loader -->
+    <script language="javascript" type="text/javascript" src="js/dojo-config.js"></script>
+    <script language="javascript" type="text/javascript" src="/jsmodules/dojo-1.7.0/lib/dojo.js"></script>
+  </head>
+  <body class="claro">
+    <script language="javascript" type="text/javascript">
+    require([
+      'mycouch/CouchDbStore',
+      'put-selector/put',
+      'dgrid/OnDemandGrid',
+      'dojo/domReady!'
+    ], function(CouchDbStore, put, Grid){
+      console.debug("creating store");
+
+      var store = new CouchDbStore({target:"/chicago/"});
+
+      console.debug("store created, creating grid");
+      
+      var grid = new Grid({
+        columns: [{
+            field: 'id',
+            label: 'Id'
+          }
+        ],
+      }, 'the-grid');
+      
+      grid.startup();
+      
+      console.debug("grid created %o, calling renderQuery", grid);
+      
+      grid.set('store', store, {
+        type: 'view',
+        design: 'moduling',
+        view: 'byInventoryNumber',
+        processAs: 'viewWithDocIncluded',
+      }, {});
+      
+      G_grid = grid;
+
+    });
+    
+    
+    
+    </script>
+
+    <div id="the-grid"></div>
+    
+  </body>
+</html>
+
+
+
