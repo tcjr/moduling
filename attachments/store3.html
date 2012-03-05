@@ -6,58 +6,45 @@
     <meta name="description" content="" />
     
     <title></title>
-    <!--
     <link href="/jsmodules/dojo-1.7.0/lib/resources/dojo.css" rel="stylesheet" type="text/css" />
     <link href="/jsmodules/dijit-1.7.0/lib/themes/claro/claro.css" rel="stylesheet" type="text/css" />
-    -->
-    <style type="text/css">
-    @import "/jsmodules/dojo-1.7.0/lib/resources/dojo.css";
-    @import "/jsmodules/dgrid/lib/css/dgrid.css";
-    @import "/jsmodules/dgrid/lib/css/skins/slate.css";
-    </style>
     <!-- dojo loader -->
     <script language="javascript" type="text/javascript" src="js/dojo-config.js"></script>
     <script language="javascript" type="text/javascript" src="/jsmodules/dojo-1.7.0/lib/dojo.js"></script>
   </head>
-  <body class="slate">
+  <body class="claro">
     <script language="javascript" type="text/javascript">
     require([
+      'dojo/_base/declare',
       'mycouch/CouchDbStore',
       'put-selector/put',
       'dgrid/OnDemandGrid',
+      'dgrid/extensions/Pagination',
+      'dojo/store/Observable',
       'dojo/domReady!'
-    ], function(CouchDbStore, put, Grid){
+    ], function(declare, CouchDbStore, put, Grid, Pagination, Observable){
       console.debug("creating store");
 
-      var store = new CouchDbStore({target:"/chicago/"});
+      var store = Observable(new CouchDbStore({target:"/chicago/"}));
 
       console.debug("store created, creating grid");
       
-      var grid = new Grid({
+      var CustomGrid = declare([Grid, Pagination], {
+        refresh: function(){
+          if(!this.store){
+            console.warn("Pagination requires a store to operate.")
+          }else{
+            this.inherited(arguments);
+            console.debug("calling gotoPage(1)");
+            this.gotoPage(1);
+          }
+        }
+      });
+      
+      var grid = new CustomGrid({
         columns: [{
             field: 'id',
             label: 'Id'
-          },{
-            field: 'Plate',
-            label: 'Plate'
-          },{
-            field: 'State',
-            label: 'State'
-          },{
-            field: 'Make',
-            label: 'Make'
-          },{
-            field: 'Model',
-            label: 'Model'
-          },{
-            field: 'Style',
-            label: 'Style'
-          },{
-            field: 'Color',
-            label: 'Color'
-          },{
-            field: 'Tow Date',
-            label: 'Tow Date'
           }
         ],
       }, 'the-grid');
@@ -72,10 +59,6 @@
         view: 'byInventoryNumber',
         processAs: 'viewWithDocIncluded',
       }, {});
-      
-      // grid.set('store', store, {
-      //   type: 'all'
-      // }, {});
       
       G_grid = grid;
 

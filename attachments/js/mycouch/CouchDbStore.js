@@ -24,6 +24,7 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
       switch(query.processAs){
         case 'viewWithDocIncluded':
           opts.include_docs = true;
+          opts.reduce = false;
           break
         case 'viewKeys':
           opts.reduce = false;
@@ -68,6 +69,11 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
     }
 
     switch(query.type){
+      case 'all':
+        queryUrl = '_all_docs';
+        processor = util.resultsProcessors.viewWithDocIncluded;
+        options.include_docs = true;
+        break;
       case 'view':
         util._checkArgs(query, 'type view', ['design', 'view']);
         // req: design
@@ -271,6 +277,8 @@ function(array, declare, Deferred, lang, xhr, ioQuery, JsonRestStore, StockQuery
 // ***  
 
   var CouchDbStore = dojo.declare([JsonRestStore], {
+
+    warnArgs: true,
 
     constructor: function(){
       this.inherited(arguments);

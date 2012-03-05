@@ -1,4 +1,5 @@
 define([
+  'dojo/dom',
   'dojo/_base/array',
   'dojo/_base/declare',
   "dojo/_base/lang",
@@ -6,7 +7,7 @@ define([
   'mycouch/CouchDbStore',
   'dojox/charting/Chart2D'
 ], 
-function(array, declare, lang, put, CouchStore, Chart2D){
+function(dom, array, declare, lang, put, CouchStore, Chart2D){
 
   var Tow = declare([], {
     _store: null, 
@@ -31,6 +32,20 @@ function(array, declare, lang, put, CouchStore, Chart2D){
       
     },
     
+    listColorCounts: function(node){
+      var ul = put(dom.byId(node), 'ul');
+      
+      var loadData = this._getColorCounts();
+      loadData.then(function(colorCounts){
+        
+        array.forEach(colorCounts, function(cc){
+          put(ul, 'li', cc.color + " : " + cc._view_value);
+        });
+        
+      });
+      
+    },
+    
     chartColors: function(node){
       // build the chart
       
@@ -48,18 +63,21 @@ function(array, declare, lang, put, CouchStore, Chart2D){
       console.debug("about to chart %o into node %o", counts, node);
 
       var colors = array.map(counts, "return item.color");
+      console.debug("colors array: %o", colors);
       var numbers = array.map(counts, function(item){return item._view_value;});
 
       var chart = Chart2D(node);
+      
+      chart.addAxis("colorName", {
+        labels: colors,
+        vertical: true
+      });
+      
       chart.addPlot("totals", {
         type: 'Bars',
         hAxis: 'colorName'
       });
 
-      chart.addAxis("colorName", {
-        labels: colors,
-        vertical: true
-      });
       
       chart.addSeries("Totals", numbers, {plot: 'totals'});
       chart.render();
